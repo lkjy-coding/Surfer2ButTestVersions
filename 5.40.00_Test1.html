@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+	<title>Surfer2 · 5.40.00 专业冲浪器</title>
+	<style>
+		* { margin: 0; padding: 0; box-sizing: border-box; }
+
+		body {
+			font-family: system-ui, 'Segoe UI', monospace;
+			background: #0a0f1e;
+			height: 100vh;
+			display: flex;
+			justify-content: center;
+			align-items: center;
+			padding: 16px;
+			transition: background-color 0.35s ease, color 0.25s ease;
+			margin: 0;
+			position: relative;
+			overflow: hidden;
+		}
+		body.high-contrast {
+			background: #000000 !important;
+			color: #ffffff !important;
+		}
+		body.high-contrast .surfer-container,
+		body.high-contrast .internal-page,
+		body.high-contrast .settings-group,
+		body.high-contrast .calc-gui,
+		body.high-contrast .toolbar,
+		body.high-contrast .pin-item,
+		body.high-contrast .page-card,
+		body.high-contrast .feedback-item,
+		body.high-contrast .chat-message {
+			background: #000000 !important;
+			border-color: #ffffff !important;
+			color: #ffffff !important;
+		}
+		body.high-contrast button,
+		body.high-contrast .calc-gui-btn,
+		body.high-contrast .game-btn {
+			background: #333333 !important;
+			color: #ffffff !important;
+			border: 1px solid #ffffff !important;
+		}
+		body.light-mode { background: #e2e8f0; }
+
+		.bg-layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -2; background-size: cover; background-position: center; background-repeat: no-repeat; }
+		.acrylic-layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; transition: opacity 0.35s ease; opacity: 0; background: rgba(14, 20, 39, 0.6); backdrop-filter: blur(20px) saturate(180%); }
+		body.acrylic-active .acrylic-layer { opacity: 1; }
+
+		.surfer-container {
+			width: 100%; max-width: 1400px; height: 90vh; background: #0e1427; border-radius: 32px;
+			box-shadow: 0 25px 45px rgba(0,0,0,0.5); display: flex; flex-direction: column;
+			overflow: hidden; border: 1px solid #2d3e5f; transition: background-color 0.35s ease, border-color 0.3s ease, backdrop-filter 0.3s ease;
+			position: relative; z-index: 1;
+		}
+		body.light-mode .surfer-container { background: #ffffff; border-color: #cbd5e1; }
+		body.acrylic-active .surfer-container { background: rgba(14, 20, 39, 0.65); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.25); }
+
+		.toolbar {
+			background: #111927cc; backdrop-filter: blur(8px); padding: 8px 16px;
+			border-bottom: 1px solid #2a3a55; display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+		}
+		body.light-mode .toolbar { background: #f1f5f9; border-bottom-color: #e2e8f0; }
+		.nav-buttons { display: flex; gap: 6px; background: #0b101e99; padding: 4px 10px; border-radius: 48px; }
+		body.light-mode .nav-buttons { background: #e2e8f0; }
+		.nav-btn { background: #1e2a3e; border: none; color: #b4d0ff; font-size: 1.2rem; width: 32px; height: 32px; border-radius: 40px; cursor: pointer; }
+		body.light-mode .nav-btn { background: #cbd5e1; color: #1e293b; }
+		.url-bar { flex: 1; display: flex; gap: 6px; background: #0b101e99; padding: 4px 12px; border-radius: 60px; align-items: center; }
+		body.light-mode .url-bar { background: #e2e8f0; }
+		.url-input { flex: 1; background: #010a1a; border: 1px solid #2c5270; padding: 8px 14px; border-radius: 48px; color: #c0e0ff; font-size: 0.85rem; outline: none; }
+		body.light-mode .url-input { background: #ffffff; border-color: #cbd5e1; color: #1e293b; }
+		.go-btn { background: #1f6392; border: none; padding: 5px 14px; border-radius: 40px; color: white; cursor: pointer; font-size: 0.75rem; }
+		.status { font-size: 0.65rem; background: #030a17aa; padding: 3px 10px; border-radius: 20px; color: #87b9ff; }
+		body.light-mode .status { background: #e2e8f0; color: #475569; }
+		.boss-btn, .pin-btn, .hide-window-btn, .user-btn { background: #4a5568; border: none; padding: 4px 14px; border-radius: 32px; color: white; cursor: pointer; font-size: 0.8rem; }
+		.boss-btn { background: #9e4a2c; }
+		.pin-btn { background: #8b5cf6; }
+		.user-btn { background: #22c55e; }
+		.wave-area { flex: 1; position: relative; overflow: auto; }
+		iframe { width: 100%; height: 100%; border: none; background: white; display: block; }
+		.internal-page { width: 100%; min-height: 100%; background: #0f172a; color: #e2e8f0; padding: 20px; overflow-y: auto; }
+		body.light-mode .internal-page { background: #f8fafc; color: #1e293b; }
+		.settings-group { margin-bottom: 20px; padding: 12px; background: #1e293b; border-radius: 16px; }
+		body.light-mode .settings-group { background: #ffffff; border: 1px solid #e2e8f0; }
+		.color-wheel { width: 100%; height: 40px; margin-top: 8px; cursor: pointer; border-radius: 12px; border: 1px solid #475569; }
+
+		/* 画板样式 */
+		.paint-container {
+			display: flex;
+			flex-direction: column;
+			height: 100%;
+			min-height: 600px;
+		}
+		.paint-toolbar {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 8px;
+			padding: 12px;
+			background: #1e293b;
+			border-radius: 20px;
+			margin-bottom: 16px;
+			align-items: center;
+		}
+		body.light-mode .paint-toolbar { background: #ffffff; border: 1px solid #e2e8f0; }
+		.paint-canvas-area {
+			flex: 1;
+			overflow: auto;
+			background: #2d3748;
+			border-radius: 20px;
+			position: relative;
+			min-height: 500px;
+		}
+		.canvas-wrapper {
+			position: relative;
+			transform-origin: 0 0;
+		}
+		#mainCanvas {
+			display: block;
+			box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+			cursor: crosshair;
+			background: white;
+		}
+		.paint-btn {
+			background: #3b82f6;
+			border: none;
+			padding: 6px 12px;
+			border-radius: 20px;
+			color: white;
+			cursor: pointer;
+			font-size: 0.75rem;
+		}
+		.paint-btn.active { background: #22c55e; }
+		.board-selector {
+			display: flex;
+			gap: 8px;
+			flex-wrap: wrap;
+			margin-bottom: 12px;
+		}
+		.board-tab {
+			background: #2d3748;
+			padding: 4px 12px;
+			border-radius: 20px;
+			cursor: pointer;
+		}
+		.board-tab.active { background: #3b82f6; }
+		.paint-tool-group {
+			display: flex;
+			gap: 4px;
+			background: #0f172a;
+			padding: 4px 8px;
+			border-radius: 40px;
+		}
+		.color-mixer {
+			display: flex;
+			gap: 8px;
+			align-items: center;
+			background: #0f172a;
+			padding: 4px 12px;
+			border-radius: 40px;
+		}
+		.rgb-slider { width: 80px; }
+
+		.user-menu {
+			position: absolute;
+			top: 60px;
+			right: 20px;
+			background: #1e293b;
+			border-radius: 20px;
+			padding: 12px;
+			min-width: 220px;
+			z-index: 200;
+			display: none;
+			border: 1px solid #475569;
+		}
+		.user-menu.show { display: block; }
+		.user-menu-item { padding: 8px 12px; cursor: pointer; border-radius: 12px; }
+		.user-menu-item:hover { background: #2d3e5f; }
+
+		/* 其他内部页面样式 */
+		.homepage-container { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100%; padding: 40px 20px; }
+		.homepage-title { font-size: 3rem; font-weight: bold; background: linear-gradient(135deg, #3b82f6, #8b5cf6); background-clip: text; -webkit-background-clip: text; color: transparent; }
+		.search-box { display: flex; gap: 12px; justify-content: center; margin: 20px 0; flex-wrap: wrap; }
+		.search-input { width: 400px; padding: 12px 20px; border-radius: 60px; border: 1px solid #475569; background: #0f172a; color: #e2e8f0; }
+		body.light-mode .search-input { background: #ffffff; border-color: #cbd5e1; color: #1e293b; }
+		.engine-select { padding: 12px 20px; border-radius: 60px; background: #1e293b; border: 1px solid #475569; color: #e2e8f0; cursor: pointer; }
+		.pages-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; margin-top: 20px; }
+		.page-card { background: #1e293b; border-radius: 20px; padding: 20px; text-align: center; cursor: pointer; transition: all 0.2s ease; color: #e2e8f0; }
+		body.light-mode .page-card { background: #ffffff; border: 1px solid #e2e8f0; color: #1e293b; }
+		.page-card:hover { transform: translateY(-3px); background: #2d3e5f; }
+		.pin-container { display: flex; flex-direction: column; gap: 20px; }
+		.pin-add { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; background: #1e293b; padding: 16px; border-radius: 24px; }
+		.pin-add input { flex: 1; padding: 10px 16px; border-radius: 40px; background: #0f172a; border: 1px solid #475569; color: inherit; }
+		.pin-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+		.pin-item { background: #1e293b; border-radius: 20px; padding: 16px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+		.pin-item .pin-delete { background: #ef4444; border: none; padding: 4px 12px; border-radius: 20px; color: white; cursor: pointer; }
+		.game-selector { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin-bottom: 20px; }
+		.game-btn { background: #3b82f6; border: none; padding: 8px 20px; border-radius: 40px; color: white; cursor: pointer; }
+		.game-board { display: grid; gap: 2px; justify-content: center; margin: 20px auto; background: #2d3748; padding: 10px; border-radius: 16px; }
+		.game-cell { background: #1e293b; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; font-weight: bold; cursor: pointer; aspect-ratio: 1 / 1; min-width: 30px; }
+		.translate-container { max-width: 900px; margin: 0 auto; }
+		.translate-box { background: #1e293b; border-radius: 24px; padding: 20px; }
+		.translate-textarea { width: 100%; height: 150px; padding: 12px; border-radius: 16px; background: #0f172a; border: 1px solid #475569; resize: vertical; }
+		.calc-gui { background: #1e293b; border-radius: 24px; padding: 20px; margin-top: 16px; }
+		.calc-display { background: #0f172a; border-radius: 20px; padding: 20px; margin-bottom: 20px; font-family: monospace; font-size: 1.8rem; text-align: right; min-height: 80px; }
+		.calc-gui-row { display: flex; gap: 10px; margin-bottom: 10px; }
+		.calc-gui-btn { flex: 1; padding: 16px 8px; font-size: 1.2rem; font-weight: bold; border: none; border-radius: 20px; cursor: pointer; background: #2d3748; color: #e2e8f0; }
+		.calc-gui-btn.operator { background: #3b82f6; color: white; }
+		.calc-gui-btn.equals { background: #22c55e; color: white; }
+		.calc-gui-btn.clear { background: #ef4444; color: white; }
+		.calc-gui-btn.func { background: #8b5cf6; color: white; }
+		.note-editor { display: flex; flex-direction: column; gap: 16px; }
+		.note-split { display: flex; gap: 16px; min-height: 500px; flex-wrap: wrap; }
+		.note-input-area, .note-preview-area { flex: 1; }
+		.note-textarea { width: 100%; height: 400px; background: #0f172a; border: 1px solid #475569; border-radius: 16px; padding: 16px; color: #f1f5f9; font-family: monospace; resize: vertical; }
+		.chat-container { max-width: 800px; margin: 0 auto; }
+		.chat-messages { height: 400px; overflow-y: auto; background: #0f172a; border-radius: 16px; padding: 12px; margin-bottom: 12px; }
+		.chat-message { margin-bottom: 12px; padding: 8px; border-radius: 12px; background: #1e293b; }
+		.report-container { max-width: 600px; margin: 0 auto; text-align: center; }
+		.report-buttons { display: flex; gap: 20px; justify-content: center; margin-top: 30px; flex-wrap: wrap; }
+		.report-btn { padding: 14px 28px; border-radius: 60px; font-size: 1.1rem; font-weight: bold; cursor: pointer; border: none; }
+		.plugin-tabs { display: flex; gap: 8px; border-bottom: 1px solid #475569; margin-bottom: 20px; flex-wrap: wrap; }
+		.plugin-tab { padding: 10px 24px; cursor: pointer; border-radius: 20px 20px 0 0; background: #1e293b; color: #e2e8f0; }
+		.plugin-tab.active { background: #3b82f6; color: white; }
+		.map-container { width: 100%; height: 500px; border-radius: 24px; overflow: hidden; }
+		.map-frame { width: 100%; height: 100%; border: none; }
+	</style>
+</head>
+<body>
+	<div class="bg-layer" id="bgLayer"></div>
+	<div class="acrylic-layer" id="acrylicLayer"></div>
+	<div class="surfer-container" id="surferContainer">
+		<div class="toolbar">
+			<div class="nav-buttons"><button class="nav-btn" id="backBtn">◀</button><button class="nav-btn" id="forwardBtn">▶</button><button class="nav-btn" id="reloadBtn">⟳</button></div>
+			<div class="url-bar"><input type="text" id="urlInput" class="url-input" placeholder="surfer:homepage / settings / note / chess / paintboard / pages / pin / report / chat / translate / count / chajian" value="about:blank"><button id="goBtn" class="go-btn">冲浪</button></div>
+			<button id="bossKeyBtn" class="boss-btn">🕹️ B</button>
+			<button id="pinKeyBtn" class="pin-btn">📌 P</button>
+			<button id="hideWindowBtn" class="hide-window-btn">🙈 隐藏</button>
+			<button id="userBtn" class="user-btn">👤 登录</button>
+			<div class="status" id="statusMsg">⚡ Surfer2 5.40.00</div>
+		</div>
+		<div class="wave-area" id="waveArea"><iframe id="surfFrame" src="about:blank" style="display:none;"></iframe><div id="internalContainer" style="width:100%;height:100%;overflow:auto;"></div></div>
+	</div>
+	<div id="userMenu" class="user-menu">
+		<div id="userMenuName" style="text-align:center; font-weight:bold;"></div>
+		<div class="user-menu-item" id="menuLogout">🚪 登出</div>
+	</div>
+	<script>
+		(function(){
+			const frame = document.getElementById('surfFrame');
+			const internalContainer = document.getElementById('internalContainer');
+			const urlInput = document.getElementById('urlInput');
+			const goBtn = document.getElementById('goBtn');
+			const backBtn = document.getElementById('backBtn');
+			const forwardBtn = document.getElementById('forwardBtn');
+			const reloadBtn = document.getElementById('reloadBtn');
+			const statusSpan = document.getElementById('statusMsg');
+			const bossBtn = document.getElementById('bossKeyBtn');
+			const pinBtn = document.getElementById('pinKeyBtn');
+			const hideBtn = document.getElementById('hideWindowBtn');
+			const userBtn = document.getElementById('userBtn');
+			const userMenu = document.getElementById('userMenu');
+			const bgLayer = document.getElementById('bgLayer');
+			let historyStack = [], historyIndex = -1;
+			let enableBKey = localStorage.getItem('surfer2_enableBKey') !== 'false';
+			let enablePKey = localStorage.getItem('surfer2_enablePKey') !== 'false';
+
+			// 账号系统
+			let currentUser = JSON.parse(localStorage.getItem('surfer2_user') || 'null');
+			function login(){ const name = prompt("输入用户名:"); if(name){ currentUser = { username: name }; localStorage.setItem('surfer2_user', JSON.stringify(currentUser)); updateUserBtn(); } }
+			function logout(){ currentUser = null; localStorage.removeItem('surfer2_user'); updateUserBtn(); userMenu.classList.remove('show'); }
+			function updateUserBtn(){ userBtn.innerHTML = currentUser ? `👤 ${currentUser.username}` : '👤 登录'; }
+			userBtn.onclick = () => { if(currentUser) userMenu.classList.toggle('show'); else login(); };
+			document.getElementById('menuLogout').onclick = logout;
+			updateUserBtn();
+
+			// 快捷键输入框检测
+			function isInputFocused(){ const active = document.activeElement; return active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA'); }
+
+			// 样式加载
+			function loadCustomStyles(){
+				const bgImage = localStorage.getItem('surfer2_bgImage');
+				const lightMode = localStorage.getItem('surfer2_lightMode') === 'true';
+				const acrylic = localStorage.getItem('surfer2_acrylic') === 'true';
+				const highContrast = localStorage.getItem('surfer2_highContrast') === 'true';
+				if(lightMode) document.body.classList.add('light-mode');
+				else document.body.classList.remove('light-mode');
+				if(acrylic) document.body.classList.add('acrylic-active');
+				else document.body.classList.remove('acrylic-active');
+				if(highContrast) document.body.classList.add('high-contrast');
+				else document.body.classList.remove('high-contrast');
+				if(bgImage) { bgLayer.style.backgroundImage = `url(${bgImage})`; bgLayer.style.backgroundSize = 'cover'; bgLayer.style.backgroundPosition = 'center'; }
+				else bgLayer.style.backgroundImage = '';
+			}
+			loadCustomStyles();
+
+			// ========== 完整画板 ==========
+			let paintBoards = JSON.parse(localStorage.getItem('surfer2_paintboards') || '[{"id":"default","name":"画板1","imageData":null,"history":[],"historyIndex":-1}]');
+			let currentBoardId = localStorage.getItem('surfer2_currentBoard') || 'default';
+			let currentTool = 'pen';
+			let penColor = '#000000';
+			let penSize = 5;
+			let isDrawing = false;
+			let lastX = 0, lastY = 0;
+			let canvasCtx = null;
+			let canvasWidth = 3000, canvasHeight = 3000;
+			let viewX = 0, viewY = 0;
+			let textBoxes = JSON.parse(localStorage.getItem('surfer2_textboxes') || '[]');
+
+			function savePaintBoards(){ localStorage.setItem('surfer2_paintboards', JSON.stringify(paintBoards)); localStorage.setItem('surfer2_textboxes', JSON.stringify(textBoxes)); }
+			function saveCurrentBoardState(){
+				const board = paintBoards.find(b => b.id === currentBoardId);
+				if(board && canvasCtx){
+					board.imageData = document.getElementById('mainCanvas').toDataURL();
+					if(board.historyIndex < board.history.length - 1) board.history = board.history.slice(0, board.historyIndex + 1);
+					board.history.push(board.imageData);
+					board.historyIndex = board.history.length - 1;
+					if(board.history.length > 50) board.history.shift();
+					savePaintBoards();
+				}
+			}
+			function loadImageToCanvas(imgData){
+				const img = new Image();
+				img.onload = () => { canvasCtx.drawImage(img, 0, 0, canvasWidth, canvasHeight); renderTextBoxes(); saveCurrentBoardState(); };
+				img.src = imgData;
+			}
+			function renderTextBoxes(){
+				textBoxes.forEach(box => { canvasCtx.font = `${box.fontSize}px sans-serif`; canvasCtx.fillStyle = box.color; canvasCtx.fillText(box.text, box.x, box.y); });
+			}
+			function undo(){
+				const board = paintBoards.find(b => b.id === currentBoardId);
+				if(board && board.historyIndex > 0){ board.historyIndex--; loadImageToCanvas(board.history[board.historyIndex]); }
+			}
+			function redo(){
+				const board = paintBoards.find(b => b.id === currentBoardId);
+				if(board && board.historyIndex < board.history.length - 1){ board.historyIndex++; loadImageToCanvas(board.history[board.historyIndex]); }
+			}
+			function clearCanvas(){ if(confirm('清空画板？')){ canvasCtx.fillStyle = '#ffffff'; canvasCtx.fillRect(0, 0, canvasWidth, canvasHeight); saveCurrentBoardState(); } }
+			function draw(e){
+				if(!isDrawing) return;
+				const rect = document.getElementById('mainCanvas').getBoundingClientRect();
+				const scaleX = canvasWidth / rect.width, scaleY = canvasHeight / rect.height;
+				let clientX = e.clientX !== undefined ? e.clientX : e.touches?.[0]?.clientX;
+				let clientY = e.clientY !== undefined ? e.clientY : e.touches?.[0]?.clientY;
+				if(clientX === undefined) return;
+				let x = (clientX - rect.left) * scaleX, y = (clientY - rect.top) * scaleY;
+				x = Math.max(0, Math.min(canvasWidth, x)); y = Math.max(0, Math.min(canvasHeight, y));
+				canvasCtx.beginPath();
+				canvasCtx.lineCap = 'round'; canvasCtx.lineJoin = 'round';
+				if(currentTool === 'eraser'){ canvasCtx.strokeStyle = '#ffffff'; canvasCtx.lineWidth = penSize * 2; }
+				else { canvasCtx.strokeStyle = penColor; canvasCtx.lineWidth = penSize; }
+				if(lastX === 0 && lastY === 0){ canvasCtx.moveTo(x, y); canvasCtx.lineTo(x+0.5, y+0.5); }
+				else { canvasCtx.moveTo(lastX, lastY); canvasCtx.lineTo(x, y); }
+				canvasCtx.stroke();
+				lastX = x; lastY = y;
+			}
+			function startDrawing(e){
+				isDrawing = true;
+				const rect = document.getElementById('mainCanvas').getBoundingClientRect();
+				const scaleX = canvasWidth / rect.width, scaleY = canvasHeight / rect.height;
+				let clientX = e.clientX !== undefined ? e.clientX : e.touches?.[0]?.clientX;
+				let clientY = e.clientY !== undefined ? e.clientY : e.touches?.[0]?.clientY;
+				if(clientX === undefined) return;
+				lastX = (clientX - rect.left) * scaleX; lastY = (clientY - rect.top) * scaleY;
+				lastX = Math.max(0, Math.min(canvasWidth, lastX)); lastY = Math.max(0, Math.min(canvasHeight, lastY));
+				canvasCtx.beginPath(); canvasCtx.moveTo(lastX, lastY);
+			}
+			function endDrawing(){ isDrawing = false; lastX = 0; lastY = 0; saveCurrentBoardState(); }
+			function initCanvas(){
+				const canvas = document.getElementById('mainCanvas');
+				if(!canvas) return;
+				canvas.width = canvasWidth; canvas.height = canvasHeight;
+				canvasCtx = canvas.getContext('2d');
+				const board = paintBoards.find(b => b.id === currentBoardId);
+				if(board && board.imageData){ const img = new Image(); img.onload = () => { canvasCtx.drawImage(img, 0, 0); renderTextBoxes(); }; img.src = board.imageData; }
+				else { canvasCtx.fillStyle = '#ffffff'; canvasCtx.fillRect(0, 0, canvasWidth, canvasHeight); }
+				canvas.addEventListener('mousedown', startDrawing); canvas.addEventListener('mousemove', draw);
+				canvas.addEventListener('mouseup', endDrawing); canvas.addEventListener('mouseleave', endDrawing);
+				canvas.addEventListener('touchstart', (e) => { e.preventDefault(); startDrawing(e.touches[0]); });
+				canvas.addEventListener('touchmove', (e) => { e.preventDefault(); draw(e.touches[0]); });
+				canvas.addEventListener('touchend', endDrawing);
+				canvas.addEventListener('dblclick', (e) => {
+					const rect = canvas.getBoundingClientRect();
+					const scaleX = canvasWidth / rect.width, scaleY = canvasHeight / rect.height;
+					const x = (e.clientX - rect.left) * scaleX, y = (e.clientY - rect.top) * scaleY;
+					for(let box of textBoxes){
+						if(Math.abs(x - box.x) < 50 && Math.abs(y - box.y) < 30){
+							const newText = prompt('编辑文字:', box.text);
+							if(newText !== null) box.text = newText;
+							savePaintBoards();
+							loadImageToCanvas(paintBoards.find(b=>b.id===currentBoardId).imageData);
+							break;
+						}
+					}
+				});
+			}
+			function moveCanvas(dx, dy){ viewX += dx; viewY += dy; document.querySelector('.canvas-wrapper').style.transform = `translate(${viewX}px, ${viewY}px)`; }
+			function uploadImage(file, rotate=0, scale=1){
+				const reader = new FileReader();
+				reader.onload = (e) => {
+					const img = new Image();
+					img.onload = () => {
+						let w = img.width * scale, h = img.height * scale;
+						let x = (canvasWidth - w) / 2, y = (canvasHeight - h) / 2;
+						canvasCtx.save();
+						canvasCtx.translate(x + w/2, y + h/2);
+						canvasCtx.rotate(rotate * Math.PI / 180);
+						canvasCtx.drawImage(img, -w/2, -h/2, w, h);
+						canvasCtx.restore();
+						saveCurrentBoardState();
+					};
+					img.src = e.target.result;
+				};
+				reader.readAsDataURL(file);
+			}
+			function addTextBox(){ textBoxes.push({ id: Date.now(), x: 500, y: 500, text: '双击编辑', color: penColor, fontSize: 24 }); savePaintBoards(); loadImageToCanvas(paintBoards.find(b=>b.id===currentBoardId).imageData); }
+			function exportCanvas(){ const link = document.createElement('a'); link.download = `surfer2_${currentBoardId}.png`; link.href = document.getElementById('mainCanvas').toDataURL(); link.click(); }
+			function importCanvas(file){
+				const reader = new FileReader();
+				reader.onload = (e) => { const img = new Image(); img.onload = () => { canvasCtx.drawImage(img, 0, 0, canvasWidth, canvasHeight); saveCurrentBoardState(); }; img.src = e.target.result; };
+				reader.readAsDataURL(file);
+			}
+			function addNewBoard(){
+				const name = prompt('新画板名称:'); if(name){ const newId = Date.now().toString(); paintBoards.push({ id: newId, name, imageData: null, history: [], historyIndex: -1 }); savePaintBoards(); currentBoardId = newId; localStorage.setItem('surfer2_currentBoard', currentBoardId); renderPaintBoard(); initCanvas(); attachPaintEvents(); renderBoardSelector(); }
+			}
+			function renameBoard(){
+				const board = paintBoards.find(b => b.id === currentBoardId);
+				if(board){ const newName = prompt('新名称:', board.name); if(newName) board.name = newName; savePaintBoards(); renderBoardSelector(); }
+			}
+			function renderBoardSelector(){
+				const container = document.getElementById('boardSelector');
+				if(container) container.innerHTML = paintBoards.map(b => `<div class="board-tab ${b.id === currentBoardId ? 'active' : ''}" onclick="window.switchBoard('${b.id}')">${b.name}</div>`).join('');
+			}
+			window.switchBoard = (id) => { saveCurrentBoardState(); currentBoardId = id; localStorage.setItem('surfer2_currentBoard', currentBoardId); renderPaintBoard(); initCanvas(); attachPaintEvents(); renderBoardSelector(); };
+			function attachPaintEvents(){
+				const colorPicker = document.getElementById('penColorPicker');
+				const sizeSlider = document.getElementById('penSizeSlider');
+				const sizeLabel = document.getElementById('sizeLabel');
+				const imgUpload = document.getElementById('imageUpload');
+				const imgRotate = document.getElementById('imgRotate');
+				const imgScale = document.getElementById('imgScale');
+				const applyImageBtn = document.getElementById('applyImageBtn');
+				if(colorPicker) colorPicker.onchange = (e) => { penColor = e.target.value; currentTool = 'pen'; };
+				if(sizeSlider) sizeSlider.oninput = (e) => { penSize = parseInt(e.target.value); if(sizeLabel) sizeLabel.innerText = `${penSize}px`; };
+				let selectedImageFile = null;
+				if(imgUpload) imgUpload.onchange = (e) => { selectedImageFile = e.target.files[0]; };
+				if(applyImageBtn) applyImageBtn.onclick = () => { if(selectedImageFile){ let rot = imgRotate ? parseInt(imgRotate.value) : 0; let sc = imgScale ? parseFloat(imgScale.value) : 1; uploadImage(selectedImageFile, rot, sc); } };
+			}
+			function renderPaintBoard(){
+				return `<div class="internal-page"><div class="paint-container">
+					<div class="board-selector" id="boardSelector"></div>
+					<div class="paint-toolbar">
+						<div class="paint-tool-group">
+							<button class="paint-btn ${currentTool==='pen'?'active':''}" onclick="window.setTool('pen')">✏️ 画笔</button>
+							<button class="paint-btn ${currentTool==='eraser'?'active':''}" onclick="window.setTool('eraser')">🧽 橡皮</button>
+							<button class="paint-btn" onclick="window.undo()">↩️ 撤销</button>
+							<button class="paint-btn" onclick="window.redo()">↪️ 重做</button>
+							<button class="paint-btn" onclick="window.clearCanvas()">🗑️ 清空</button>
+						</div>
+						<div class="color-mixer">
+							<input type="color" id="penColorPicker" value="${penColor}" style="width:40px; height:40px; border-radius:50%; cursor:pointer;">
+						</div>
+						<div class="paint-tool-group">
+							<input type="range" id="penSizeSlider" min="1" max="30" value="${penSize}" style="width:100px;">
+							<span id="sizeLabel">${penSize}px</span>
+						</div>
+						<div class="paint-tool-group">
+							<button class="paint-btn" onclick="window.moveCanvas(-50,0)">◀ 左移</button>
+							<button class="paint-btn" onclick="window.moveCanvas(50,0)">右移 ▶</button>
+							<button class="paint-btn" onclick="window.moveCanvas(0,-50)">▲ 上移</button>
+							<button class="paint-btn" onclick="window.moveCanvas(0,50)">下移 ▼</button>
+						</div>
+						<div class="paint-tool-group">
+							<input type="file" id="imageUpload" accept="image/*" style="display:none;">
+							<button class="paint-btn" onclick="document.getElementById('imageUpload').click()">📷 上传图片</button>
+							<input type="number" id="imgRotate" placeholder="旋转" value="0" style="width:60px;">
+							<input type="number" id="imgScale" placeholder="缩放" value="1" step="0.1" style="width:60px;">
+							<button class="paint-btn" id="applyImageBtn">✓ 应用</button>
+						</div>
+						<div class="paint-tool-group">
+							<button class="paint-btn" onclick="window.addTextBox()">📝 文字框</button>
+							<button class="paint-btn" onclick="window.exportCanvas()">💾 导出</button>
+							<input type="file" id="importFile" accept="image/*" style="display:none;">
+							<button class="paint-btn" onclick="document.getElementById('importFile').click()">📂 导入</button>
+							<button class="paint-btn" onclick="window.addNewBoard()">➕ 新画板</button>
+							<button class="paint-btn" onclick="window.renameBoard()">✏️ 重命名</button>
+						</div>
+					</div>
+					<div class="paint-canvas-area" id="paintCanvasArea" style="overflow:auto; position:relative;">
+						<div class="canvas-wrapper" style="transform:translate(${viewX}px, ${viewY}px);">
+							<canvas id="mainCanvas" width="${canvasWidth}" height="${canvasHeight}" style="width:${canvasWidth/2}px; height:${canvasHeight/2}px;"></canvas>
+						</div>
+					</div>
+				</div></div>`;
+			}
+			window.setTool = (tool) => { currentTool = tool; document.querySelectorAll('.paint-btn').forEach(btn => btn.classList.remove('active')); if(document.querySelector(`.paint-btn[onclick*="setTool('${tool}')"]`)) document.querySelector(`.paint-btn[onclick*="setTool('${tool}')"]`).classList.add('active'); };
+			window.undo = undo; window.redo = redo; window.clearCanvas = clearCanvas; window.moveCanvas = moveCanvas; window.addTextBox = addTextBox; window.exportCanvas = exportCanvas; window.addNewBoard = addNewBoard; window.renameBoard = renameBoard;
+			if(document.getElementById('importFile')) document.getElementById('importFile').onchange = (e) => { if(e.target.files[0]) importCanvas(e.target.files[0]); };
+
+			// ========== 其他内部页面 ==========
+			function renderHomepage(){
+				const savedEngine = localStorage.getItem('surfer2_defaultEngine') || 'google';
+				return `<div class="internal-page"><div class="homepage-container">
+					<div class="homepage-title">🌊 Surfer2</div>
+					<p>快速搜索 · 内置导航 · 安全冲浪</p>
+					<div class="search-box">
+						<input type="text" id="homeSearchInput" class="search-input" placeholder="输入搜索内容...">
+						<select id="homeEngineSelect" class="engine-select">
+							<option value="google" ${savedEngine==='google'?'selected':''}>Google</option>
+							<option value="bing" ${savedEngine==='bing'?'selected':''}>Bing</option>
+							<option value="baidu" ${savedEngine==='baidu'?'selected':''}>百度</option>
+							<option value="github" ${savedEngine==='github'?'selected':''}>GitHub</option>
+						</select>
+						<button id="homeSearchBtn" class="go-btn">搜索</button>
+					</div>
+					<div class="github-link"><a href="https://github.com/lkjy-coding/Surfer2" target="_blank">📦 GitHub 仓库 · Surfer2</a></div>
+				</div></div>`;
+			}
+			function renderSettingsPage(){
+				const lightMode = localStorage.getItem('surfer2_lightMode') === 'true';
+				const acrylic = localStorage.getItem('surfer2_acrylic') === 'true';
+				const highContrast = localStorage.getItem('surfer2_highContrast') === 'true';
+				const bKeyEnabled = localStorage.getItem('surfer2_enableBKey') !== 'false';
+				const pKeyEnabled = localStorage.getItem('surfer2_enablePKey') !== 'false';
+				const savedBg = localStorage.getItem('surfer2_bgImage') || '';
+				return `<div class="internal-page"><h2>⚙️ Surfer2 设置</h2>
+					<div class="settings-group"><strong>⌨️ 快捷键</strong><label><input type="checkbox" id="enableBKeyToggle" ${bKeyEnabled ? 'checked' : ''}> 启用 B 键</label><label><input type="checkbox" id="enablePKeyToggle" ${pKeyEnabled ? 'checked' : ''}> 启用 P 键</label></div>
+					<div class="settings-group"><strong>🎨 外观</strong><label><input type="checkbox" id="lightModeToggle" ${lightMode ? 'checked' : ''}> 浅色模式</label><label><input type="checkbox" id="acrylicToggle" ${acrylic ? 'checked' : ''}> 亚克力磨砂</label><label><input type="checkbox" id="highContrastToggle" ${highContrast ? 'checked' : ''}> 高对比度</label></div>
+					<div class="settings-group"><div>背景图片: <input type="text" id="bgImageUrl" value="${savedBg}" style="width:60%;"><input type="file" id="bgImageUpload" accept="image/*"></div><button id="applyStyleBtn">应用样式</button></div>
+					<div class="settings-group"><strong>🔍 默认搜索引擎</strong><select id="defaultEngineSelect"><option value="google">Google</option><option value="bing">Bing</option><option value="baidu">百度</option><option value="github">GitHub</option></select></div>
+					<div class="settings-group"><strong>版本信息</strong><div>Surfer2 5.40.00</div></div>
+					<button id="saveAllBtn">保存所有</button></div>`;
+			}
+			function attachSettingsEvents(){
+				const bgUpload = document.getElementById('bgImageUpload');
+				if(bgUpload) bgUpload.onchange = (e) => { const f=e.target.files[0]; if(f){ const r=new FileReader(); r.onload=ev=>document.getElementById('bgImageUrl').value=ev.target.result; r.readAsDataURL(f); } };
+				document.getElementById('applyStyleBtn').onclick = () => { localStorage.setItem('surfer2_bgImage', document.getElementById('bgImageUrl').value); loadCustomStyles(); };
+				document.getElementById('saveAllBtn').onclick = () => {
+					localStorage.setItem('surfer2_lightMode', document.getElementById('lightModeToggle').checked);
+					localStorage.setItem('surfer2_acrylic', document.getElementById('acrylicToggle').checked);
+					localStorage.setItem('surfer2_highContrast', document.getElementById('highContrastToggle').checked);
+					localStorage.setItem('surfer2_enableBKey', document.getElementById('enableBKeyToggle').checked);
+					localStorage.setItem('surfer2_enablePKey', document.getElementById('enablePKeyToggle').checked);
+					localStorage.setItem('surfer2_defaultEngine', document.getElementById('defaultEngineSelect').value);
+					location.reload();
+				};
+			}
+			function renderPagesPage(){
+				const pages = ['homepage','settings','note','chess','paintboard','pin','report','chat','translate','count','chajian'];
+				return `<div class="internal-page"><h2>📌 内部域名导航</h2><div class="pages-grid">${pages.map(p=>`<div class="page-card" data-domain="${p}"><h3>🔗 surfer:${p}</h3></div>`).join('')}</div></div>`;
+			}
+			function renderNotePage(){ return `<div class="internal-page"><h2>📝 surfer:note</h2><div class="note-editor"><textarea id="noteContent" class="note-textarea" placeholder="# 标题"></textarea><div id="notePreview" class="note-preview"></div><button id="noteSaveBtn">保存</button></div></div>`; }
+			function attachNoteEvents(){ const ta=document.getElementById('noteContent'); const preview=document.getElementById('notePreview'); const saved=localStorage.getItem('surfer2_note')||''; ta.value=saved; function render(){ let html=marked.parse(ta.value); html=html.replace(/\$\$([\s\S]+?)\$\$/g,(_,latex)=>{ try{ return katex.renderToString(latex,{displayMode:true}); }catch(e){ return latex; } }); preview.innerHTML=html; } ta.addEventListener('input',render); document.getElementById('noteSaveBtn').onclick=()=>{ localStorage.setItem('surfer2_note',ta.value); statusSpan.innerText='笔记已保存'; }; render(); }
+			function renderPinPage(){
+				let shortcuts = JSON.parse(localStorage.getItem('surfer2_shortcuts') || '[]');
+				return `<div class="internal-page"><div class="pin-container"><div class="pin-add"><input type="text" id="pinName" placeholder="名称"><input type="text" id="pinUrl" placeholder="网址"><button id="addPinBtn">添加</button></div><div id="pinList" class="pin-list"></div></div></div>`;
+			}
+			function attachPinEvents(){
+				let shortcuts = JSON.parse(localStorage.getItem('surfer2_shortcuts') || '[]');
+				function renderPins(){
+					const container = document.getElementById('pinList');
+					if(!container) return;
+					container.innerHTML = shortcuts.map((pin,idx)=>`<div class="pin-item"><span class="pin-name">📌 ${pin.name}</span><button class="pin-delete" data-idx="${idx}">删除</button></div>`).join('');
+					document.querySelectorAll('.pin-delete').forEach(btn=>{ btn.onclick=(e)=>{ e.stopPropagation(); shortcuts.splice(parseInt(btn.dataset.idx),1); localStorage.setItem('surfer2_shortcuts',JSON.stringify(shortcuts)); renderPins(); }; });
+					document.querySelectorAll('.pin-item').forEach((item,idx)=>{ item.onclick=()=>{ navigateTo(shortcuts[idx].url); }; });
+				}
+				document.getElementById('addPinBtn').onclick = () => { const name=document.getElementById('pinName').value.trim(); const url=document.getElementById('pinUrl').value.trim(); if(name && url){ shortcuts.push({name,url}); localStorage.setItem('surfer2_shortcuts',JSON.stringify(shortcuts)); renderPins(); document.getElementById('pinName').value=''; document.getElementById('pinUrl').value=''; } };
+				renderPins();
+			}
+			function renderChessPage(){ return `<div class="internal-page"><h2>🎮 井字棋</h2><div id="chessBoard" class="game-board" style="grid-template-columns:repeat(3,80px);"></div><button id="resetChess">新对局</button><span id="chessStatus"></span></div>`; }
+			function attachChessEvents(){
+				let board=['','','','','','','','',''], active=true, turn='X';
+				const container=document.getElementById('chessBoard'), statusSpan=document.getElementById('chessStatus');
+				function update(){ container.innerHTML=''; for(let i=0;i<9;i++){ const c=document.createElement('div'); c.className='game-cell'; c.innerText=board[i]; if(active && board[i]==='' && turn==='X') c.onclick=()=>playerMove(i); container.appendChild(c); } }
+				function winner(b){ const l=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]]; for(let line of l) if(b[line[0]] && b[line[0]]===b[line[1]] && b[line[0]]===b[line[2]]) return b[line[0]]; return null; }
+				function aiMove(){ if(!active || turn!=='O') return; const empty=board.reduce((a,c,i)=>{ if(c==='') a.push(i); return a; },[]); if(empty.length===0) return; const move=empty[Math.floor(Math.random()*empty.length)]; board[move]='O'; const w=winner(board); if(w){ active=false; statusSpan.innerText=w==='X'?'你赢了':'AI赢了'; }else{ turn='X'; } update(); }
+				function playerMove(i){ if(!active || turn!=='X' || board[i]!=='') return; board[i]='X'; const w=winner(board); if(w){ active=false; statusSpan.innerText='你赢了'; update(); return; } turn='O'; update(); setTimeout(aiMove,100); }
+				document.getElementById('resetChess').onclick = () => { board=['','','','','','','','','']; active=true; turn='X'; statusSpan.innerText='你的回合'; update(); };
+				update();
+			}
+			function renderTranslatePage(){ return `<div class="internal-page"><div class="translate-container"><h2>🌐 翻译</h2><div class="translate-box"><select id="transSrc"><option value="auto">自动</option><option value="zh">中文</option><option value="en">英语</option></select> → <select id="transTgt"><option value="zh">中文</option><option value="en" selected>英语</option></select><textarea id="transSrcText" class="translate-textarea"></textarea><button id="transBtn">翻译</button><div id="transResult" class="translate-result"></div></div></div></div>`; }
+			function attachTranslateEvents(){
+				document.getElementById('transBtn').onclick = async () => { const text=document.getElementById('transSrcText').value, src=document.getElementById('transSrc').value, tgt=document.getElementById('transTgt').value; if(!text) return; const url=`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${src}|${tgt}`; const res=await fetch(url); const data=await res.json(); document.getElementById('transResult').innerHTML=data.responseData?.translatedText||'失败'; };
+			}
+			function renderCountPage(){
+				return `<div class="internal-page"><div class="calc-container"><div class="calc-gui"><div class="calc-display" id="calcDisplay">0</div><div class="calc-gui-row"><button class="calc-gui-btn clear" data-action="clear">AC</button><button class="calc-gui-btn" data-action="back">⌫</button><button class="calc-gui-btn operator" data-op="/">÷</button><button class="calc-gui-btn operator" data-op="*">×</button></div><div class="calc-gui-row"><button class="calc-gui-btn" data-num="7">7</button><button class="calc-gui-btn" data-num="8">8</button><button class="calc-gui-btn" data-num="9">9</button><button class="calc-gui-btn operator" data-op="-">−</button></div><div class="calc-gui-row"><button class="calc-gui-btn" data-num="4">4</button><button class="calc-gui-btn" data-num="5">5</button><button class="calc-gui-btn" data-num="6">6</button><button class="calc-gui-btn operator" data-op="+">+</button></div><div class="calc-gui-row"><button class="calc-gui-btn" data-num="1">1</button><button class="calc-gui-btn" data-num="2">2</button><button class="calc-gui-btn" data-num="3">3</button><button class="calc-gui-btn equals" data-action="equals">=</button></div><div class="calc-gui-row"><button class="calc-gui-btn" data-num="0">0</button><button class="calc-gui-btn" data-num=".">.</button><button class="calc-gui-btn func" data-func="sqrt">√</button><button class="calc-gui-btn func" data-func="pow">x²</button></div><div id="calcResultArea" class="calc-result"></div></div></div>`;
+			}
+			function attachCountEvents(){
+				let expr=''; const display=document.getElementById('calcDisplay'); function update(){ display.innerText=expr||'0'; }
+				function calc(){ try{ let e=expr.replace(/×/g,'*').replace(/÷/g,'/').replace(/\^/g,'**'); e=e.replace(/√\(?([^)]+)\)?/g,'Math.sqrt($1)').replace(/(\d+)²/g,'Math.pow($1,2)').replace(/sin\(/g,'Math.sin(').replace(/cos\(/g,'Math.cos(').replace(/tan\(/g,'Math.tan(').replace(/π/g,'Math.PI'); const result=eval(e); document.getElementById('calcResultArea').innerHTML=`结果: ${result}`; expr=result.toString(); update(); }catch(e){ document.getElementById('calcResultArea').innerHTML=`错误: ${e.message}`; } }
+				function handle(v){ if(v==='clear'){ expr=''; document.getElementById('calcResultArea').innerHTML=''; update(); } else if(v==='back'){ expr=expr.slice(0,-1); update(); } else if(v==='equals'){ calc(); } else if(v==='sqrt'){ expr+='√('; update(); } else if(v==='pow'){ expr+='²'; update(); } else if(v==='sin'){ expr+='sin('; update(); } else if(v==='cos'){ expr+='cos('; update(); } else if(v==='tan'){ expr+='tan('; update(); } else if(v==='pi'){ expr+='π'; update(); } else { expr+=v; update(); } }
+				document.querySelectorAll('.calc-gui-btn[data-num]').forEach(b=>b.onclick=()=>handle(b.dataset.num)); document.querySelectorAll('.calc-gui-btn[data-op]').forEach(b=>b.onclick=()=>handle(b.dataset.op)); document.querySelector('[data-action="clear"]').onclick=()=>handle('clear'); document.querySelector('[data-action="back"]').onclick=()=>handle('back'); document.querySelector('[data-action="equals"]').onclick=()=>handle('equals'); document.querySelectorAll('.calc-gui-btn[data-func]').forEach(b=>b.onclick=()=>handle(b.dataset.func));
+			}
+			function renderReportPage(){ return `<div class="internal-page"><div class="report-container"><h2>📝 反馈</h2><div class="report-buttons"><button id="reportExternalBtn" class="report-btn secondary">🌐 在浏览器中打开 GitHub Issues</button></div></div></div>`; }
+			function attachReportEvents(){ document.getElementById('reportExternalBtn').onclick = () => window.open('https://github.com/lkjy-coding/Surfer2/issues', '_blank'); }
+			function renderChajianPage(){ return `<div class="internal-page"><h2>🔌 插件中心</h2><div class="plugin-tabs"><div class="plugin-tab active" data-tab="maps">🗺️ 在线地图</div></div><div id="plugin-maps" class="plugin-pane active"><div class="map-container"><iframe class="map-frame" src="https://www.openstreetmap.org/export/embed.html?bbox=-30,-20,70,60&layer=mapnik"></iframe></div></div></div>`; }
+			function attachChajianEvents(){ document.querySelectorAll('.plugin-tab').forEach(tab=>{ tab.onclick=()=>{ document.querySelectorAll('.plugin-tab').forEach(t=>t.classList.remove('active')); tab.classList.add('active'); document.querySelectorAll('.plugin-pane').forEach(p=>p.classList.remove('active')); document.getElementById(`plugin-${tab.dataset.tab}`).classList.add('active'); }; }); }
+
+			function renderInternalPage(pageId){
+				frame.style.display = 'none';
+				internalContainer.style.display = 'block';
+				internalContainer.innerHTML = '';
+				if(pageId === 'homepage') internalContainer.innerHTML = renderHomepage(), setTimeout(()=>{ const btn=document.getElementById('homeSearchBtn'); const input=document.getElementById('homeSearchInput'); if(btn) btn.onclick = () => { if(input.value) navigateTo(`https://www.google.com/search?q=${encodeURIComponent(input.value)}`); }; }, 50);
+				else if(pageId === 'settings') internalContainer.innerHTML = renderSettingsPage(), attachSettingsEvents();
+				else if(pageId === 'pages') internalContainer.innerHTML = renderPagesPage(), document.querySelectorAll('.page-card').forEach(c=>c.onclick = ()=>navigateTo(`surfer:${c.dataset.domain}`));
+				else if(pageId === 'note') internalContainer.innerHTML = renderNotePage(), attachNoteEvents();
+				else if(pageId === 'pin') internalContainer.innerHTML = renderPinPage(), attachPinEvents();
+				else if(pageId === 'chess') internalContainer.innerHTML = renderChessPage(), attachChessEvents();
+				else if(pageId === 'translate') internalContainer.innerHTML = renderTranslatePage(), attachTranslateEvents();
+				else if(pageId === 'count') internalContainer.innerHTML = renderCountPage(), attachCountEvents();
+				else if(pageId === 'report') internalContainer.innerHTML = renderReportPage(), attachReportEvents();
+				else if(pageId === 'chajian') internalContainer.innerHTML = renderChajianPage(), attachChajianEvents();
+				else if(pageId === 'paintboard') internalContainer.innerHTML = renderPaintBoard(), setTimeout(()=>{ initCanvas(); attachPaintEvents(); renderBoardSelector(); }, 100);
+				else internalContainer.innerHTML = `<div class="internal-page"><h2>❓ 未知域名</h2></div>`;
+				statusSpan.innerText = `📄 ${pageId}`;
+				urlInput.value = `surfer:${pageId}`;
+			}
+
+			function navigateTo(url){
+				let target = url.trim();
+				if(target.startsWith('surfer:')){
+					const page = target.slice(7).split('?')[0];
+					const validPages = ['homepage','settings','note','chess','paintboard','pages','pin','report','chat','translate','count','chajian'];
+					if(validPages.includes(page)){
+						renderInternalPage(page);
+						historyStack = historyStack.slice(0, historyIndex+1);
+						historyStack.push(target);
+						historyIndex++;
+						urlInput.value = target;
+						return;
+					}
+				}
+				if(target === 'about:blank'){ frame.style.display='block'; internalContainer.style.display='none'; frame.src='about:blank'; historyStack=historyStack.slice(0,historyIndex+1); historyStack.push(target); historyIndex++; urlInput.value=target; statusSpan.innerText='空白页'; return; }
+				if(!target.startsWith('http')) target='https://'+target;
+				frame.style.display='block'; internalContainer.style.display='none'; frame.src=target;
+				historyStack = historyStack.slice(0,historyIndex+1); historyStack.push(target); historyIndex++; urlInput.value=target;
+			}
+
+			function goBack(){ if(historyIndex>0){ historyIndex--; navigateTo(historyStack[historyIndex]); } }
+			function goForward(){ if(historyIndex<historyStack.length-1){ historyIndex++; navigateTo(historyStack[historyIndex]); } }
+			function reloadCurrent(){ navigateTo(urlInput.value); }
+			goBtn.onclick = () => navigateTo(urlInput.value);
+			backBtn.onclick = goBack; forwardBtn.onclick = goForward; reloadBtn.onclick = reloadCurrent;
+			urlInput.onkeypress = (e) => { if(e.key === 'Enter') navigateTo(urlInput.value); };
+			bossBtn.onclick = () => navigateTo('surfer:settings');
+			pinBtn.onclick = () => navigateTo('surfer:paintboard');
+			document.addEventListener('keydown', (e) => {
+				if(isInputFocused()) return;
+				if((e.key === 'b' || e.key === 'B') && enableBKey) { e.preventDefault(); navigateTo('surfer:settings'); }
+				if((e.key === 'p' || e.key === 'P') && enablePKey) { e.preventDefault(); navigateTo('surfer:paintboard'); }
+			});
+			let hidden=false; hideBtn.onclick = ()=>{ const c=document.querySelector('.surfer-container'); if(!hidden){ c.style.opacity='0'; c.style.visibility='hidden'; hidden=true; const restore=document.createElement('button'); restore.innerText='显示'; restore.style.cssText='position:fixed;bottom:20px;right:20px;z-index:10000;background:#3b82f6;border:none;padding:8px 16px;border-radius:40px;color:white;cursor:pointer'; restore.onclick=()=>{ c.style.opacity='1'; c.style.visibility='visible'; hidden=false; restore.remove(); }; document.body.appendChild(restore); } };
+			
+			navigateTo('surfer:homepage');
+		})();
+	</script>
+</body>
+</html>
